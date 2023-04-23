@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>抽奖盲盒</title>
+  </head>
+  <style>
+    @import url("https://layui.itze.cn/layui-v2.6.8/layui/css/layui.css");
+    @import url("style.css");
+  </style>
+  <body>
+    <a href="#" class="shake-button btn-gradient orange">摇一摇</a>
+  </body>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.138.0/build/three.module.js",
+        "OrbitControls": "https://unpkg.com/three@0.138.0/examples/jsm/controls/OrbitControls.js",
+        "tweenjs": "https://unpkg.com/@tweenjs/tween.js@18.6.4/dist/tween.esm.js"
+      }
+    }
+  </script>
+  <script type="text/javascript" src="https://layui.itze.cn/layui-v2.6.8/layui/layui.js"></script>
+  <script type="module">
+    // 通过访问 https://cdn.skypack.dev/three 来查找最新版本。
+    import * as THREE from 'three'
+    import { OrbitControls } from 'OrbitControls'
+    import TWEEN from 'tweenjs'
+    const renderer = new THREE.WebGLRenderer()
+    const body = document.querySelector('body')
+
+    renderer.setSize(body.clientWidth, body.clientHeight)
+    renderer.setClearColor(0xeeeeee, 0.0)
+    renderer.setPixelRatio(window.devicePixelRatio)
+    document.body.appendChild(renderer.domElement)
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 500)
+    camera.position.set(0, 150, 300)
+    camera.lookAt(0, 0, 0)
+
+    const scene = new THREE.Scene()
+
+    let geometry = new THREE.BoxGeometry(100, 160, 100)
+    const frontImg = 'https://online-pic.51mo.com/preview/templet/784931/784931_0_v1.jpg?imageView2/2/w/1080/q/90|imageMogr2/thumbnail/1080x1650/extent/1080x1650/position/north|watermark/2/text/6a2U5Yqb6K6-IHd3dy41MW1vLmNvbSBJRDQ3MDUyMA==/font/6buR5L2T/fontsize/350/gravity/South/dx/0/dy/6/fill/IzRhNGE0YQ=='
+    const sideImg = 'https://online-pic.51mo.com/preview/templet/784931/784931_0_v1.jpg?imageView2/2/w/1080/q/90|imageMogr2/thumbnail/1080x1650/extent/1080x1650/position/north|watermark/2/text/6a2U5Yqb6K6-IHd3dy41MW1vLmNvbSBJRDQ3MDUyMA==/font/6buR5L2T/fontsize/350/gravity/South/dx/0/dy/6/fill/IzRhNGE0YQ=='
+    const topImg = 'https://online-pic.51mo.com/preview/element/00/01/28/42/E-1284254-750B7645.jpg?imageView2/2/w/1080/q/90|imageMogr2/thumbnail/1024x798/extent/1024x798/position/north|watermark/2/text/6a2U5Yqb6K6-IHd3dy41MW1vLmNvbSBJRDIwNTQwNjkz/font/6buR5L2T/fontsize/350/gravity/South/dx/0/dy/6/fill/IzRhNGE0YQ=='
+    const front_material = new THREE.MeshBasicMaterial({
+      map: new THREE.TextureLoader().load(frontImg),
+    })
+    const side__material = new THREE.MeshBasicMaterial({
+      map: new THREE.TextureLoader().load(sideImg),
+    })
+    const top___material = new THREE.MeshBasicMaterial({
+      map: new THREE.TextureLoader().load(topImg),
+    })
+    // 贴上对应纹理图
+    const material = [side__material, side__material, top___material, top___material, front_material, front_material]
+    let cubeMesh = new THREE.Mesh(geometry, material)
+    scene.add(cubeMesh)
+
+    let light = new THREE.PointLight(0xffffff) // 颜色
+    light.position.set(-100, 100, 100) // 位置
+    scene.add(light)
+
+    let controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableZoom = false // 禁止缩放
+    controls.enablePan = false // 禁止平移
+    controls.saveState()
+
+    let stopRotation = false
+
+    function render(time) {
+      requestAnimationFrame(render)
+      TWEEN.update(time)
+      if (!stopRotation) {
+        cubeMesh.rotation.y -= 0.005
+      } else {
+        cubeMesh.rotation.y = cubeMesh.rotation.y
+      }
+
+      controls.update()
+      renderer.render(scene, camera)
+    }
+
+    render()
+    const cameraRadius = 300
+    controls.addEventListener('start', function () {
+      stopRotation = true
+    })
+    controls.addEventListener('end', function () {
+      const position = {
+        ...camera.position,
+      }
+
+      new TWEEN.Tween(position)
+        .to(
+          {
+            x: 0,
+            y: 150,
+            z: 300,
+          },
+          600
+        )
+        .onUpdate(() => {
+          let vLen = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z)
+          const zoom = cameraRadius / vLen
+          camera.position.set(position.x * zoom, position.y * zoom, position.z * zoom)
+        })
+        .start()
+        .onComplete(() => {
+          stopRotation = false
+        })
+    })
+
+    let shakeCount = 0 // 摇一摇计数器
+    // 奖品信息
+    let awardArr = ['小风扇*1个', '玻璃杯*1个', '牛肉粒*1包', '鸭脖*1包', '巧克力饼干*1包 + 水蜜桃*1个', '玻璃杯*1个', '超级杯水果茶*1杯', '杨枝甘露*1杯']
+    let awardSize = awardArr.length;
+
+    function shake() {
+      document.querySelector('.shake-button').style.display = "none";
+      const position = {
+        x: 0,
+        y: 0,
+        z: 0,
+      }
+
+      const rotate = {
+        x: 0,
+        y: 0,
+        z: 0,
+      }
+
+      function updatePosition() {
+        const { x, y, z } = position
+        cubeMesh.position.x = x
+        cubeMesh.position.y = y
+        cubeMesh.position.z = z
+      }
+
+      const updateRotate = (function () {
+        let old = {
+          ...rotate,
+        }
+        return function () {
+          const { x, y, z } = rotate
+          const radian = 2 * Math.PI * ((z - old.z) / 360)
+
+          cubeMesh.rotateZ(radian)
+          old = {
+            ...rotate,
+          }
+        }
+      })()
+
+      const tweenTop = new TWEEN.Tween(position)
+        .to(
+          {
+            y: 20,
+          },
+          200
+        )
+        .onUpdate(updatePosition)
+      const tweenRight = new TWEEN.Tween(rotate).to({ z: 22 }, 200).onUpdate(updateRotate)
+      const tweenLeft = new TWEEN.Tween(rotate).to({ z: -22 }, 200).onUpdate(updateRotate)
+      tweenTop.chain(tweenRight)
+      tweenRight.chain(tweenLeft)
+      tweenLeft.chain(tweenRight)
+      tweenRight.chain(tweenLeft)
+      tweenTop.start()
+      setTimeout(() => {
+        tweenTop.stop()
+        const tweenCenter = new TWEEN.Tween(rotate).to({ z: 0 }, 200).onUpdate(updateRotate)
+        const tweenDown = new TWEEN.Tween(position)
+          .to(
+            {
+              y: 0,
+            },
+            200
+          )
+          .onUpdate(updatePosition)
+        tweenCenter.chain(tweenDown).start()
+      }, 2500)
+      playAudio();
+      setTimeout(() => {
+        var award = getAward();
+        layer.open({
+          type: 1,
+          closeBtn: false,
+          area: ['600px', '300px'],
+          title:'<h3>🎉🎉恭喜中奖啦🎉🎉</h3>',
+          content: '<h1 style="text-align:center;line-height:200px;color:red;">🎉🎊🎁  ' + award +'  🎁🎊🎉</h1>',
+          btn: '开心收下',
+          btnAlign: 'c', //按钮居中
+          yes: function(){
+            layer.closeAll();
+            document.querySelector('.shake-button').style.display = "block";
+            shakeCount++;
+            if (shakeCount == awardSize) {
+              document.querySelector('.shake-button').style.display = "none";
+            }
+          }
+        });
+      }, 2600)
+    }
+
+    // 获取奖励信息
+    function getAward() {
+      var len = awardArr.length;
+      var index = randomNum(0, len - 1);
+      var award = awardArr[index];
+      awardArr.splice(index, 1);
+      return award;
+    }
+
+    // 播放音效
+    function playAudio() {
+        const audio1 = document.createElement("audio");
+        audio1.src = "yao.mp3";
+        audio1.play();
+        setTimeout(() => {
+          const audio2 = document.createElement("audio");
+          audio2.src = "yao.mp3";
+          audio2.play();
+          }, 1500)
+        setTimeout(() => {
+          const audio3 = document.createElement("audio");
+          audio3.src = "ding.mp3";
+          audio3.play();
+          }, 2200)
+      }
+
+    //生成从minNum到maxNum的随机数
+    function randomNum(minNum,maxNum){ 
+        switch(arguments.length){ 
+            case 1: 
+                return parseInt(Math.random()*minNum+1,10); 
+            break; 
+            case 2: 
+                return parseInt(Math.random()*(maxNum-minNum+1)+minNum,10); 
+            break; 
+                default: 
+                    return 0; 
+                break; 
+        } 
+    }
+    document.querySelector('.shake-button').addEventListener('click', shake)
+
+  </script>
+</html>
